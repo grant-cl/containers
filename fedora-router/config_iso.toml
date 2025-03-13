@@ -11,8 +11,8 @@ timezone Pacific/Auckland
 lang en_NZ.UTF-8
 keyboard us
 
-user --name=harrisongulliver --groups=wheel --plaintext --password=password
-sshkey --username=harrisongulliver "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPaLFi2fWCjBujMIqzlc4w91Woq2AHv0E7RfEx4i9tYV"
+user --name=chris --groups=wheel --plaintext --password=password
+sshkey --username=chris "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIfbU7bHdYE5RWgZVb6Ix4tmhUE52XkJUTDguFXvZtXN chris@linux"
 """
 
 [customizations.installer.modules]

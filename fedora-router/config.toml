@@ -2,9 +2,9 @@
 timezone = "Pacific/Auckland"
 
 [[customizations.user]]
-name = "harrisongulliver"
+name = "chris"
 password = "password"
-key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPaLFi2fWCjBujMIqzlc4w91Woq2AHv0E7RfEx4i9tYV"
+key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIfbU7bHdYE5RWgZVb6Ix4tmhUE52XkJUTDguFXvZtXN chris@linux"
 groups = ["wheel"]
 
 [[customization.disk.partitions]]
