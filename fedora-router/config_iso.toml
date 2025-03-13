@@ -1,0 +1,25 @@
+[customizations.installer.kickstart]
+contents = """
+%post
+# https://github.com/osbuild/bootc-image-builder/issues/780
+bootc switch --mutate-in-place --transport registry registry.hpg.nz/fedora/router-bootc:latest
+%end
+
+network --bootproto=dhcp --device=link --activate --onboot=on
+
+timezone Pacific/Auckland
+lang en_NZ.UTF-8
+keyboard us
+
+user --name=harrisongulliver --groups=wheel --plaintext --password=password
+sshkey --username=harrisongulliver "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPaLFi2fWCjBujMIqzlc4w91Woq2AHv0E7RfEx4i9tYV"
+"""
+
+[customizations.installer.modules]
+enable = [
+    "org.fedoraproject.Anaconda.Modules.Localization",
+    "org.fedoraproject.Anaconda.Modules.Storage",
+    "org.fedoraproject.Anaconda.Modules.Network",
+    "org.fedoraproject.Anaconda.Modules.Users",
+    "org.fedoraproject.Anaconda.Modules.Timezone"
+]

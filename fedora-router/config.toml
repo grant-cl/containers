@@ -1,0 +1,27 @@
+[customizations.timezone]
+timezone = "Pacific/Auckland"
+
+[[customizations.user]]
+name = "harrisongulliver"
+password = "password"
+key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPaLFi2fWCjBujMIqzlc4w91Woq2AHv0E7RfEx4i9tYV"
+groups = ["wheel"]
+
+[[customization.disk.partitions]]
+type = "lvm"
+name = "fedora"
+
+[[customization.disk.partitions.logical_volumes]]
+name = "rootlv"
+mountpoint = "/"
+label = "root"
+fs_type = "xfs"
+minsize = "8 GiB"
+
+[[customization.disk.partitions.logical_volumes]]
+name = "datalv"
+mountpoint = "/var/mnt/data"
+label = "data"
+fs_type = "xfs"
+minsize = "1 GiB"
+
