@@ -12,7 +12,7 @@ RUN dnf -y install \
         # Cockpit
         cockpit cockpit-files cockpit-machines cockpit-podman cockpit-selinux \
         # WiFi
-        iw hostapd wireless-regdb wpa_supplicant NetworkManager-wifi iwl7260-firmware \
+        iw wireless-regdb wpa_supplicant iwd NetworkManager-wifi iwl7260-firmware \
         # Network Tools
         tcpdump nmap iperf3 iptraf-ng iputils iproute bind-utils \
         traceroute net-tools mtr btop \
@@ -46,7 +46,6 @@ RUN chown -R tss:tss /var/lib/swtpm-localca && \
 RUN systemctl enable \
         snmpd \
         smb \
-        hostapd \
         qemu-guest-agent \
         cockpit.socket \
         firewalld && \
@@ -57,11 +56,6 @@ RUN systemctl enable \
     systemctl set-default multi-user.target && \
     sed -i 's/%wheel	ALL=(ALL)	ALL/%wheel	ALL=(ALL)	NOPASSWD: ALL/g' /etc/sudoers && \
 
-    # Remove tuned profiles
-    for i in accelerator-performance aws hpc-compute intel-sst latency-performance \
-    network-latency network-throughput optimize-serial-console throughput-performance \
-    virtual-host virtual-guest; \
-        do if [ -d /usr/lib/tuned/profiles/$i ] ; then rm -rf /usr/lib/tuned/profiles/$i ; fi ; done
 
 COPY etc /etc
 RUN chmod 600 /etc/NetworkManager/system-connections/*.nmconnection

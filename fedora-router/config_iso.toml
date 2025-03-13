@@ -2,7 +2,7 @@
 contents = """
 %post
 # https://github.com/osbuild/bootc-image-builder/issues/780
-bootc switch --mutate-in-place --transport registry registry.hpg.nz/fedora/router-bootc:latest
+bootc switch --mutate-in-place --transport registry zot-registry.apps.ocp.chrislab.geek.nz/fedora/router-bootc:latest
 %end
 
 network --bootproto=dhcp --device=link --activate --onboot=on
