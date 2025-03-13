@@ -54,7 +54,7 @@ RUN systemctl enable \
     # Clean up
     dnf clean all && \
     systemctl set-default multi-user.target && \
-    sed -i 's/%wheel	ALL=(ALL)	ALL/%wheel	ALL=(ALL)	NOPASSWD: ALL/g' /etc/sudoers && \
+    sed -i 's/%wheel	ALL=(ALL)	ALL/%wheel	ALL=(ALL)	NOPASSWD: ALL/g' /etc/sudoers 
 
 
 COPY etc /etc
