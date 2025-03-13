@@ -1,4 +1,4 @@
-REGISTRY := registry.hpg.nz
+REGISTRY := zot-registry.apps.ocp.chrislab.geek.nz
 IMAGE_NAME := fedora/router-bootc
 FILE_NAME := fedora-router
 
