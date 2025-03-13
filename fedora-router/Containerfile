@@ -28,7 +28,7 @@ RUN dnf -y install \
         gnome-shell gdm gnome-terminal firefox nautilus gnome-system-monitor \
         file-roller gnome-tweaks @development-tools gdouros-symbola-fonts liberation-sans-fonts \
         liberation-fonts liberation-serif-fonts liberation-narrow-fonts liberation-mono-fonts \
-        liberation-fonts-common google-noto-cjk-fonts google-noto-cjk-fonts-common google-noto-cjk-fonts-common f41-backgrounds-gnome vlc intel-media-driver flatpak
+        liberation-fonts-common google-noto-cjk-fonts google-noto-cjk-fonts-common google-noto-cjk-fonts-common f41-backgrounds-gnome vlc flatpak
 
 RUN flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo && \
     flatpak install -y flathub org.gnome.Extensions tv.plex.PlexHTPC
