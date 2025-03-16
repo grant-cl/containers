@@ -1,4 +1,4 @@
-FROM quay.io/fedora/fedora-bootc
+FROM quay.io/fedora/fedora-bootc:41
 #FROM quay.io/fedora/fedora-bootc:41
 
 RUN dnf install -y \
