@@ -1,72 +1,152 @@
-name: Build Containers
+name: Build containers
 
 on:
   push:
-    branches: [ main ]
-    paths-ignore:
-      - '**.md'
-      - 'renovate.json'
-      - '.gitignore'
-      - '.git/**'
-      - '.github/**'
+    branches: [main]
+    paths:
+      - 'containers/**'
+  workflow_dispatch:
+    inputs:
+      container:
+        description: 'Container directory to build'
+        required: false
+        type: string
 
 jobs:
-  detect-changes:
-    runs-on: self-hosted
+  prepare-matrix:
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+    
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
-          fetch-depth: 0
-
-      - name: Get changed directories
+          fetch-depth: 2
+      
+      - name: Prepare build matrix
         id: set-matrix
         run: |
-          # Get all directories with changes compared to previous commit
-          CHANGED_DIRS=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -v "^\.github/" | cut -d/ -f1 | sort -u)
-          echo "Changed top-level directories: $CHANGED_DIRS"
+          # Determine which containers to build
+          if [[ -n "${{ github.event.inputs.container }}" ]]; then
+            dirs="${{ github.event.inputs.container }}"
+          else
+            dirs=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | \
+                  grep 'containers/' | awk -F/ '{print $2}' | uniq)
+          fi
           
-          # Check which directories have Containerfiles
-          CONTAINER_DIRS=()
-          for dir in $CHANGED_DIRS; do
-            if [ -f "$dir/Containerfile" ]; then
-              CONTAINER_DIRS+=("$dir")
+          # Build matrix entries
+          matrix_entries=()
+          for dir in $dirs; do
+            # Check base image for multi-arch support
+            image_name=$(grep 'FROM' ./containers/$dir/Containerfile | awk '{print $2}' | head -n 1)
+            manifest=$(docker manifest inspect $image_name || echo "{}")
+            
+            # Check if ARM64 is supported
+            has_arm64=$(echo "$manifest" | jq -r '.manifests[]?.platform.architecture // empty' | \
+                       grep -q 'arm64' && echo 'true' || echo 'false')
+            
+            # Set platforms based on base image support
+            archs='["linux/amd64"]'
+            if [[ $has_arm64 == "true" ]]; then
+              archs='["linux/amd64", "linux/arm64"]'
             fi
+            
+            matrix_entry="{\"dir\": \"$dir\", \"platforms\": $archs}"
+            matrix_entries+=("$matrix_entry")
           done
           
-          # Convert to proper JSON format for GitHub Actions
-          MATRIX_JSON=$(echo '{"folder":'$(printf '%s\n' "${CONTAINER_DIRS[@]}" | jq -R . | jq -s .)'}'| tr -d '\n')
-          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
-          echo "Directories with Containerfiles: $MATRIX_JSON"
+          # Create final matrix
+          matrix="{\"include\": [$(IFS=,; echo "${matrix_entries[*]}")]}"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   build:
-    needs: detect-changes
-    runs-on: self-hosted
-    if: ${{ needs.detect-changes.outputs.matrix != '{"folder":[]}' && needs.detect-changes.outputs.matrix != '' }}
+    needs: prepare-matrix
+    runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+      fail-fast: false
+      matrix:
+        container: ${{ fromJson(needs.prepare-matrix.outputs.matrix).include }}
+    permissions:
+      contents: read
+      packages: write
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
-      - name: Build container
-        working-directory: ${{ matrix.folder }}
-        run: |
-          echo "Building container for ${{ matrix.folder }} using make"
-          make container
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
       
-      - name: Build disk images
-        working-directory: ${{ matrix.folder }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
+      
+      - name: Extract metadata
+        id: metadata
         run: |
-          if [ -d /shared/artifacts ]; then
-            echo "Building images"
-            make boot
+          # Get base image tag
+          base_image=$(grep FROM containers/${{ matrix.container.dir }}/Containerfile | \
+                      awk '{print $2}' | head -n 1)
+          base_tag=$(echo "$base_image" | awk -F':' '{print $2}' | awk -F'@' '{print $1}')
+          echo "BASE_IMAGE_TAG=${base_tag:-latest}" >> $GITHUB_ENV
+          
+          # Generate date and commit tags
+          echo "DATE_TAG=$(TZ='Pacific/Auckland' date +'%Y%m%d')" >> $GITHUB_ENV
+          echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          
+          # Set image name
+          echo "IMAGE_NAME=ghcr.io/${{ github.repository }}/${{ matrix.container.dir }}" >> $GITHUB_ENV
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build single-arch image for testing
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: ./containers/${{ matrix.container.dir }}
+          file: ./containers/${{ matrix.container.dir }}/Containerfile
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:latest
+      
+      - name: Run container tests
+        if: hashFiles(format('./containers/{0}/test.sh', matrix.container.dir)) != ''
+        run: |
+          echo "Running container tests..."
+          timeout 30s docker run --rm \
+            -v $(pwd)/containers/${{ matrix.container.dir }}:/mnt \
+            --entrypoint /mnt/test.sh \
+            ${{ env.IMAGE_NAME }}:latest
+      
+      - name: Generate image tags
+        id: tags
+        run: |
+          tags="latest"
+          
+          # Get custom tags if tags.sh exists
+          if [ -f ./containers/${{ matrix.container.dir }}/tags.sh ]; then
+            chmod +x ./containers/${{ matrix.container.dir }}/tags.sh
+            custom_tags=$(docker run --rm \
+                         -v $(pwd)/containers/${{ matrix.container.dir }}:/mnt \
+                         --entrypoint /mnt/tags.sh \
+                         ${{ env.IMAGE_NAME }}:latest | tr '\n' ',' | sed 's/,$//')
             
-            for i in raw anaconda-iso qcow2; do
-                mkdir -p /shared/artifacts/data/bootc/${{ matrix.folder }}
-                if [ -d output/$i ]; then
-                    rsync -avh --remove-source-files --progress output/$i/ /shared/artifacts/data/bootc/${{ matrix.folder }}/
-                fi
-            done
+            echo "Using custom tags: $custom_tags"
+            tags="$tags,$custom_tags"
+          else
+            # Use default tags
+            default_tags="${{ env.BASE_IMAGE_TAG }},${{ env.BASE_IMAGE_TAG }}-${{ env.DATE_TAG }}"
+            echo "Using default tags: $default_tags"
+            tags="$tags,$default_tags"
           fi
+          
+          # Format tags for build-push-action
+          tags=$(echo "$tags" | tr ',' '\n' | sed "s|^|${{ env.IMAGE_NAME }}:|" | paste -sd,)
+          echo "tags=$tags" >> $GITHUB_OUTPUT
+      
+      - name: Build and push multi-arch images
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: ./containers/${{ matrix.container.dir }}
+          file: ./containers/${{ matrix.container.dir }}/Containerfile
+          platforms: ${{ join(matrix.container.platforms, ',') }}
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
