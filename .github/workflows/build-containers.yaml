@@ -61,6 +61,8 @@ jobs:
 
   build:
     needs: prepare-matrix
+    env:
+      BUILDX_NO_DEFAULT_ATTESTATIONS: 1
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
