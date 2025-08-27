@@ -143,7 +143,7 @@ jobs:
           echo "tags=$tags" >> $GITHUB_OUTPUT
       
       - name: Build and push multi-arch images
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        uses: docker/build-push-action@v6.18.0
         with:
           provenance: false # Disable provenance to avoid unknown/unknown
           sbom: false       # Disable sbom to avoid unknown/unknown
