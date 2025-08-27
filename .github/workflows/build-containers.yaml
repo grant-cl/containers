@@ -61,8 +61,6 @@ jobs:
 
   build:
     needs: prepare-matrix
-    env:
-      BUILDX_NO_DEFAULT_ATTESTATIONS: 1
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -76,6 +74,8 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
       
       - name: Set up Docker Buildx
+        env:
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
       
       - name: Extract metadata
